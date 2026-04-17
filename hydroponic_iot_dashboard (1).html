@@ -1,0 +1,328 @@
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #080d0a; font-family: 'Outfit', sans-serif; color: #e2f0e7; }
+  .topbar { display:flex; justify-content:space-between; align-items:center; padding:10px 16px; background:#07110b; border-bottom:1px solid rgba(52,211,99,0.2); }
+  .logo { color:#34d363; font-weight:600; font-size:15px; }
+  .top-controls { display:flex; align-items:center; gap:8px; }
+  .mode-btn { background:transparent; border:1px solid rgba(52,211,99,0.2); color:#6b9e78; padding:4px 10px; border-radius:6px; cursor:pointer; font-size:12px; }
+  .mode-btn.active { color:#34d363; border-color:#34d363; }
+  .device-tag { color:#6b9e78; font-size:12px; }
+  .live-dot { color:#22c55e; font-size:12px; }
+  .pause-btn { background:transparent; border:1px solid #34d363; color:#34d363; padding:4px 10px; border-radius:6px; cursor:pointer; font-size:12px; }
+  .container { padding:16px; }
+  .grid4 { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+  .grid3 { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:12px; }
+  .grid2 { display:grid; grid-template-columns:3fr 1fr; gap:12px; margin-top:12px; }
+  .card { background:#0f1812; border:1px solid rgba(52,211,99,0.1); border-radius:12px; padding:14px; transition:0.2s; }
+  .label { font-size:11px; color:#6b9e78; margin-bottom:6px; letter-spacing:.5px; }
+  .big-val { font-size:26px; font-weight:600; color:#e2f0e7; }
+  .unit { font-size:12px; color:#6b9e78; }
+  .progress-bg { background:rgba(52,211,99,0.1); height:6px; border-radius:5px; margin:10px 0; }
+  .progress-fill { height:100%; background:#34d363; border-radius:5px; transition:width 0.5s; }
+  .status-text { color:#34d363; font-size:12px; }
+  .row { display:flex; justify-content:space-between; align-items:center; margin:10px 0; font-size:13px; }
+  .toggle { width:38px; height:20px; background:#1f2a24; border-radius:20px; position:relative; cursor:pointer; transition:0.2s; }
+  .toggle.on { background:#34d363; }
+  .circle { width:16px; height:16px; background:#0a0a0a; border-radius:50%; position:absolute; top:2px; left:2px; transition:0.2s; }
+  .toggle.on .circle { left:20px; }
+  .rule { margin:8px 0; font-size:12px; }
+  .rule-ok { color:#22c55e; background:rgba(34,197,94,0.1); padding:2px 6px; border-radius:4px; }
+  .rule-warn { color:#facc15; background:rgba(250,204,21,0.1); padding:2px 6px; border-radius:4px; }
+  .rule-crit { color:#f87171; background:rgba(248,113,113,0.1); padding:2px 6px; border-radius:4px; }
+  .alert-item { font-size:12px; padding:5px 8px; border-radius:6px; margin:5px 0; }
+  .alert-ok { color:#34d363; background:rgba(52,211,99,0.08); }
+  .alert-warn { color:#facc15; background:rgba(250,204,21,0.08); }
+  .alert-crit { color:#f87171; background:rgba(248,113,113,0.08); }
+  .logs-box { background:#0f1812; border-radius:10px; padding:10px; max-height:120px; overflow-y:auto; font-size:11px; color:#6b9e78; font-family:monospace; margin-top:12px; }
+  .log-in { color:#34d363; }
+  .log-out { color:#60a5fa; }
+  .log-sys { color:#6b9e78; }
+  .chart-area { position:relative; height:180px; }
+  canvas { width:100% !important; }
+  .sensor-status { font-size:11px; margin-top:4px; padding:2px 6px; border-radius:4px; display:inline-block; }
+  .s-ok { color:#22c55e; background:rgba(34,197,94,0.1); }
+  .s-warn { color:#facc15; background:rgba(250,204,21,0.1); }
+  .s-crit { color:#f87171; background:rgba(248,113,113,0.1); }
+  .actuator-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+  .active-count { font-size:22px; font-weight:600; }
+</style>
+
+<div style="background:#080d0a; min-height:100vh;">
+
+<div class="topbar">
+  <div class="logo">HYDROPONIC IoT</div>
+  <div class="top-controls">
+    <button class="mode-btn active" id="btn-manual" onclick="setMode('manual')">manual</button>
+    <button class="mode-btn" id="btn-auto" onclick="setMode('auto')">auto</button>
+    <button class="mode-btn" id="btn-hybrid" onclick="setMode('hybrid')">hybrid</button>
+    <span class="device-tag">ESP001</span>
+    <span class="live-dot" id="live-indicator">● live</span>
+    <button class="pause-btn" onclick="togglePause()">pause</button>
+  </div>
+</div>
+
+<div class="container">
+
+  <div class="grid4">
+    <div class="card" id="card-tds">
+      <div class="label">TDS</div>
+      <div class="big-val"><span id="val-tds">—</span> <span class="unit">ppm</span></div>
+      <div class="sensor-status s-ok" id="st-tds">OK</div>
+    </div>
+    <div class="card" id="card-temp">
+      <div class="label">TEMPERATURE</div>
+      <div class="big-val"><span id="val-temp">—</span> <span class="unit">°C</span></div>
+      <div class="sensor-status s-ok" id="st-temp">NORMAL</div>
+    </div>
+    <div class="card" id="card-hum">
+      <div class="label">HUMIDITY</div>
+      <div class="big-val"><span id="val-hum">—</span> <span class="unit">%</span></div>
+      <div class="sensor-status s-ok" id="st-hum">OK</div>
+    </div>
+    <div class="card" id="card-wl">
+      <div class="label">WATER LEVEL</div>
+      <div class="big-val"><span id="val-wl">—</span> <span class="unit">%</span></div>
+      <div class="sensor-status s-ok" id="st-wl">NORMAL</div>
+    </div>
+  </div>
+
+  <div class="grid3">
+    <div class="card">
+      <div class="label">WATER LEVEL · TANK</div>
+      <div class="big-val" id="wl-big">—%</div>
+      <div class="progress-bg"><div class="progress-fill" id="wl-bar" style="width:0%"></div></div>
+      <div class="status-text" id="wl-status">● checking...</div>
+    </div>
+
+    <div class="card">
+      <div class="actuator-header">
+        <div class="label" style="margin-bottom:0">ACTUATOR CONTROL</div>
+        <div><span class="active-count" id="act-count">2</span> <span class="unit">active</span></div>
+      </div>
+      <div class="row"><span>DC Pump</span><div class="toggle on" id="t-pump" onclick="toggleAct('pump')"><div class="circle"></div></div></div>
+      <div class="row"><span>Grow Lights</span><div class="toggle" id="t-light" onclick="toggleAct('light')"><div class="circle"></div></div></div>
+      <div class="row"><span>Air Pump</span><div class="toggle on" id="t-air" onclick="toggleAct('air')"><div class="circle"></div></div></div>
+    </div>
+
+    <div class="card">
+      <div class="label">ALERTS</div>
+      <div id="alerts-container">
+        <div class="alert-item alert-ok">✓ All systems checking...</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <div class="label">SENSOR TREND · LAST 20 READINGS</div>
+      <div class="chart-area"><canvas id="myChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="label">RULE ENGINE</div>
+      <div class="rule"><span id="r-wl" class="rule-ok">wl OK</span> → pump running</div>
+      <div class="rule"><span id="r-temp" class="rule-ok">temp OK</span> → pwm normal</div>
+      <div class="rule"><span id="r-tds" class="rule-ok">tds OK</span> → no alert</div>
+      <div class="rule"><span id="r-hum" class="rule-ok">hum OK</span> → no alert</div>
+      <div style="margin-top:12px; font-size:11px; color:#6b9e78; border-top:1px solid rgba(52,211,99,0.1); padding-top:8px;">
+        Mode: <span id="mode-display" style="color:#34d363">manual</span><br>
+        Device: <span style="color:#34d363">ESP001</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="logs-box" id="logs-box">
+    <div class="log-sys">system → mock data mode active (ESP32 not connected)</div>
+  </div>
+
+</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script>
+let paused = false;
+let mode = 'manual';
+let acts = { pump: true, light: false, air: true };
+let data = { temperature: 26.5, humidity: 62, tds: 430, water_level: 70 };
+let history = { labels: [], temp: [], hum: [], tds: [] };
+let myChart = null;
+
+function setMode(m) {
+  mode = m;
+  ['manual','auto','hybrid'].forEach(x => {
+    document.getElementById('btn-'+x).classList.toggle('active', x===m);
+  });
+  document.getElementById('mode-display').textContent = m;
+  addLog('sys', 'mode changed to ' + m);
+}
+
+function togglePause() {
+  paused = !paused;
+  document.querySelector('.pause-btn').textContent = paused ? 'resume' : 'pause';
+  document.getElementById('live-indicator').style.opacity = paused ? '0.3' : '1';
+  addLog('sys', paused ? 'stream paused' : 'stream resumed');
+}
+
+function toggleAct(name) {
+  acts[name] = !acts[name];
+  document.getElementById('t-'+name).classList.toggle('on', acts[name]);
+  const count = Object.values(acts).filter(Boolean).length;
+  document.getElementById('act-count').textContent = count;
+  addLog('out', `command → ${name}: ${acts[name] ? 1 : 0}`);
+}
+
+function addLog(dir, msg) {
+  const box = document.getElementById('logs-box');
+  const t = new Date().toLocaleTimeString('en-IN', {hour12:false});
+  const d = document.createElement('div');
+  d.className = 'log-' + dir;
+  d.textContent = t + ' → ' + msg;
+  box.insertBefore(d, box.firstChild);
+  while (box.children.length > 30) box.removeChild(box.lastChild);
+}
+
+function tdsStatus(v) {
+  if (v < 300) return ['crit','CRITICAL LOW'];
+  if (v < 400) return ['warn','LOW'];
+  return ['ok','OK'];
+}
+function tempStatus(v) {
+  if (v > 32) return ['crit','CRITICAL HIGH'];
+  if (v > 30) return ['warn','HIGH'];
+  return ['ok','NORMAL'];
+}
+function humStatus(v) {
+  if (v < 30) return ['crit','CRITICAL LOW'];
+  if (v < 40) return ['warn','LOW'];
+  return ['ok','OK'];
+}
+function wlStatus(v) {
+  if (v < 20) return ['crit','CRITICAL'];
+  if (v < 35) return ['warn','LOW'];
+  return ['ok','NORMAL'];
+}
+
+function applyStatus(elId, cls) {
+  const el = document.getElementById(elId);
+  el.className = 'sensor-status s-' + cls;
+}
+
+function updateAlerts(d) {
+  const box = document.getElementById('alerts-container');
+  const items = [];
+  const [ts] = tdsStatus(d.tds);
+  const [tp] = tempStatus(d.temperature);
+  const [hs] = humStatus(d.humidity);
+  const [ws] = wlStatus(d.water_level);
+  if (ts==='crit') items.push(['crit','TDS critical low: '+d.tds+' ppm']);
+  else if (ts==='warn') items.push(['warn','TDS low: '+d.tds+' ppm']);
+  if (tp==='crit') items.push(['crit','Temp critical: '+d.temperature+'°C']);
+  else if (tp==='warn') items.push(['warn','Temperature high: '+d.temperature+'°C']);
+  if (hs==='warn'||hs==='crit') items.push([hs,'Humidity low: '+d.humidity+'%']);
+  if (ws==='crit') items.push(['crit','Water level critical: '+d.water_level+'%']);
+  else if (ws==='warn') items.push(['warn','Water level low: '+d.water_level+'%']);
+  if (items.length===0) items.push(['ok','✓ All systems normal']);
+  box.innerHTML = items.map(([cl,msg]) =>
+    `<div class="alert-item alert-${cl}">${msg}</div>`
+  ).join('');
+}
+
+function updateRules(d) {
+  const [ws] = wlStatus(d.water_level);
+  const [ts] = tempStatus(d.temperature);
+  const [td] = tdsStatus(d.tds);
+  const [hs] = humStatus(d.humidity);
+  const r = (id, cls, text) => {
+    const el = document.getElementById(id);
+    el.className = cls==='ok' ? 'rule-ok' : cls==='warn' ? 'rule-warn' : 'rule-crit';
+    el.textContent = text;
+  };
+  r('r-wl', ws, 'wl = '+d.water_level+'%');
+  r('r-temp', ts, 'temp = '+d.temperature+'°C');
+  r('r-tds', td, 'tds = '+d.tds+' ppm');
+  r('r-hum', hs, 'hum = '+d.humidity+'%');
+}
+
+function updateUI(d) {
+  document.getElementById('val-tds').textContent = d.tds;
+  document.getElementById('val-temp').textContent = d.temperature;
+  document.getElementById('val-hum').textContent = d.humidity;
+  document.getElementById('val-wl').textContent = d.water_level;
+  document.getElementById('wl-big').textContent = d.water_level + '%';
+  document.getElementById('wl-bar').style.width = d.water_level + '%';
+
+  const [ws, wlabel] = wlStatus(d.water_level);
+  document.getElementById('wl-status').textContent = ws==='ok' ? '● normal operation' : ws==='warn' ? '⚠ low — check tank' : '✕ critical — refill now';
+  document.getElementById('wl-status').style.color = ws==='ok' ? '#34d363' : ws==='warn' ? '#facc15' : '#f87171';
+
+  const [tds_s, tds_l] = tdsStatus(d.tds);
+  const [tmp_s, tmp_l] = tempStatus(d.temperature);
+  const [hum_s, hum_l] = humStatus(d.humidity);
+  const [wl_s, wl_l] = wlStatus(d.water_level);
+
+  document.getElementById('st-tds').textContent = tds_l;
+  document.getElementById('st-temp').textContent = tmp_l;
+  document.getElementById('st-hum').textContent = hum_l;
+  document.getElementById('st-wl').textContent = wl_l;
+  applyStatus('st-tds', tds_s);
+  applyStatus('st-temp', tmp_s);
+  applyStatus('st-hum', hum_s);
+  applyStatus('st-wl', wl_s);
+
+  updateAlerts(d);
+  updateRules(d);
+
+  const t = new Date().toLocaleTimeString('en-IN', {hour12:false,second:'2-digit'});
+  history.labels.push(t);
+  history.temp.push(d.temperature);
+  history.hum.push(d.humidity);
+  history.tds.push(d.tds);
+  if (history.labels.length > 20) {
+    history.labels.shift(); history.temp.shift();
+    history.hum.shift(); history.tds.shift();
+  }
+  if (myChart) {
+    myChart.data.labels = [...history.labels];
+    myChart.data.datasets[0].data = [...history.temp];
+    myChart.data.datasets[1].data = [...history.hum];
+    myChart.data.datasets[2].data = [...history.tds];
+    myChart.update('none');
+  }
+}
+
+function mockTick() {
+  if (paused) return;
+  data.temperature = +Math.max(18, Math.min(38, data.temperature + (Math.random()-0.5)*0.6)).toFixed(1);
+  data.humidity = +Math.max(20, Math.min(95, data.humidity + (Math.random()-0.5)*1.2)).toFixed(1);
+  data.tds = Math.round(Math.max(100, Math.min(900, data.tds + (Math.random()-0.5)*8)));
+  data.water_level = Math.round(Math.max(5, Math.min(100, data.water_level + (Math.random()-0.5)*1)));
+  addLog('in', `data • temp:${data.temperature} hum:${data.humidity} tds:${data.tds} wl:${data.water_level}`);
+  updateUI(data);
+}
+
+window.addEventListener('load', () => {
+  const ctx = document.getElementById('myChart').getContext('2d');
+  myChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [
+        { label:'temp °C', data:[], borderColor:'#34d363', tension:0.4, pointRadius:2, borderWidth:1.5 },
+        { label:'humidity %', data:[], borderColor:'#facc15', borderDash:[5,5], tension:0.4, pointRadius:2, borderWidth:1.5 },
+        { label:'TDS ppm/10', data:[], borderColor:'#60a5fa', tension:0.4, pointRadius:2, borderWidth:1.5 }
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false, animation:false,
+      plugins:{ legend:{ labels:{ color:'#9ca3af', font:{size:11}, boxWidth:20 }}},
+      scales:{
+        x:{ ticks:{color:'#6b7280',font:{size:10},maxRotation:0}, grid:{color:'rgba(255,255,255,0.04)'}},
+        y:{ ticks:{color:'#6b7280',font:{size:10}}, grid:{color:'rgba(255,255,255,0.04)'}}
+      }
+    }
+  });
+  updateUI(data);
+  addLog('sys', 'mock data stream started — 2s interval');
+  setInterval(mockTick, 2000);
+});
+</script>
